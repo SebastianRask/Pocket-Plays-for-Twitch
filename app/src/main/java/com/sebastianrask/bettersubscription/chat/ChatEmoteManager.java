@@ -4,8 +4,11 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.LruCache;
+import android.util.Log;
 
 import com.sebastianrask.bettersubscription.R;
+import com.sebastianrask.bettersubscription.model.Badge;
+import com.sebastianrask.bettersubscription.model.ChatBadge;
 import com.sebastianrask.bettersubscription.model.ChatEmote;
 import com.sebastianrask.bettersubscription.model.Emote;
 import com.sebastianrask.bettersubscription.service.Service;
@@ -18,6 +21,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -28,7 +32,12 @@ import java.util.regex.Pattern;
  */
 
 public class ChatEmoteManager {
+
+    final String LOG_TAG = getClass().getSimpleName();
+
     private static LruCache<String, Bitmap> cachedEmotes = new LruCache<>(4 * 1024 * 1024);
+    private static LruCache<String, ChatBadge> cachedBadges = new LruCache<>(4 * 1024 * 1024);
+
     private static Map<String, String> bttvEmotesToId;
 
     private static final int 	EMOTE_SMALL_SIZE 	= 20,
@@ -37,6 +46,9 @@ public class ChatEmoteManager {
 
     private final List<Emote> bttvGlobal = new ArrayList<>();
     private final List<Emote> bttvChannel = new ArrayList<>();
+
+    private static final Map<String, Badge> badgesGlobal = new HashMap();
+    private static final Map<String, Badge> badgesChannel = new HashMap();
 
     private Pattern bttvEmotesPattern = Pattern.compile("");
     private Pattern emotePattern = Pattern.compile("(\\d+):((?:\\d+-\\d+,?)+)");
@@ -127,32 +139,68 @@ public class ChatEmoteManager {
     }
 
     /**
-     * Connects to Twitch API to get the URL for the channels subscriber emote
-     * This must not be executed on main UI Thread
-     * @return
+     * Fetches Twitch global chat badge keywords and their versions.
+     * Must not be called from the main thread.
      */
-    Bitmap getSubscriberEmote() {
-        Bitmap emote = null;
+    protected void loadGlobalChatBadges(EmoteFetchCallback callback) {
+        loadBadgeSetsFromURL("https://badges.twitch.tv/v1/badges/global/display", badgesGlobal,
+                callback);
+    }
 
-        final String URL = "https://api.twitch.tv/kraken/chat/" + channelId + "/badges";
-        final String SUBSCRIBER_OBJECT = "subscriber";
-        final String SUBSCRIBER_IMAGE_STRING = "image";
-
-        try {
-            JSONObject dataObject = new JSONObject(Service.urlToJSONString(URL));
-            JSONObject subscriberObject = dataObject.getJSONObject(SUBSCRIBER_OBJECT);
-            String imageUrl = subscriberObject.getString(SUBSCRIBER_IMAGE_STRING);
-
-            emote = Service.getBitmapFromUrl(imageUrl);
-
-        } catch (JSONException e) {
-            e.printStackTrace();
+    /**
+     * Fetches Twitch channel chat badge keywords and their versions.
+     * Must not be called from the main thread.
+     */
+    protected void loadChannelChatBadges(EmoteFetchCallback callback) {
+        // We need to remove the channel badges from the static cache, because
+        // the names overlap between channels, e.g. "subscriber/0"
+        for (Map.Entry<String, Badge> entry : badgesChannel.entrySet()) {
+            for (String version : entry.getValue().getVersions()) {
+                cachedBadges.remove(entry.getKey() + "/" + version);
+            }
         }
+        badgesChannel.clear();
 
-        if(emote != null) {
-            return emote;
-        } else {
-            return BitmapFactory.decodeResource(context.getResources(), R.drawable.ic_missing_emote);
+        loadBadgeSetsFromURL("https://badges.twitch.tv/v1/badges/channels/" +channelId + "/display",
+                badgesChannel, callback);
+    }
+
+
+    /**
+     * Fetches Twitch global chat badge keywords and their versions.
+     * Must not be called from the main thread.
+     */
+    private void loadBadgeSetsFromURL(String url, Map<String,Badge> dest, EmoteFetchCallback callback) {
+        try {
+            final JSONObject root = new JSONObject(Service.urlToJSONString(url))
+                    .getJSONObject("badge_sets");
+
+            for (final Iterator<String> iter = root.keys(); iter.hasNext();) {
+
+                final String badgeName = iter.next();
+                final JSONObject badgeJSON = root.getJSONObject(badgeName);
+                if (badgeJSON == null) {
+                    continue;
+                }
+
+                final Badge badge = new Badge(badgeName);
+                final JSONObject versions = badgeJSON.getJSONObject("versions");
+                if (versions == null) {
+                    continue;
+                }
+
+                for (final Iterator<String> versionsIter = versions.keys(); versionsIter.hasNext();) {
+                    final String versionName = versionsIter.next();
+                    final JSONObject version = versions.getJSONObject(versionName);
+                    badge.addVersion(versionName, version.getString("image_url_2x"));
+                }
+
+                dest.put(badgeName, badge);
+            }
+        } catch(Exception e) {
+            Log.d(LOG_TAG, "Failed to fetch Twitch global chat badges", e);
+        } finally {
+            callback.onEmoteFetched();
         }
     }
 
@@ -196,6 +244,69 @@ public class ChatEmoteManager {
         }
 
         return emotes;
+    }
+
+    protected List<ChatBadge> getChatBadgesForTag(String badgeTag) {
+        List<ChatBadge> badges = new ArrayList<>();
+
+        if (badgeTag == null || badgeTag.length() == 0) {
+            return badges;
+        }
+
+        for (final String item : badgeTag.split(",")) {
+            if (item.length() == 0) {
+                continue;
+            }
+
+            // Do we already have this in memory?
+            ChatBadge chatBadge = cachedBadges.get(item);
+            if (chatBadge != null) {
+                badges.add(chatBadge);
+                continue;
+            }
+
+            // Not in cache, go chase it down
+            final String[] badgeSpec = item.split("/");
+            if (badgeSpec.length != 2) {
+                continue;
+            }
+
+            String url = null;
+
+            // Check in channel badges first
+            Badge badge = badgesChannel.get(badgeSpec[0]);
+            if (badge != null) {
+                url = badge.getVersion(badgeSpec[1]);
+            }
+            // Then fall back to global badges
+            if (url == null) {
+                badge = badgesGlobal.get(badgeSpec[0]);
+                if (badge != null) {
+                    url = badge.getVersion(badgeSpec[1]);
+                }
+            }
+
+            if (url == null) {
+                continue;
+            }
+
+            try {
+                // We need to download the 2x image
+                final Bitmap bmp = Service.getBitmapFromUrl(url);
+                chatBadge = new ChatBadge(bmp);
+
+                // In-memory cache
+                cachedBadges.put(item, chatBadge);
+
+                // TODO: use filesystem emote storage for further caching
+
+                badges.add(chatBadge);
+            } catch(Exception e) {
+                Log.d(LOG_TAG, "Failed to fetch badge " + url, e);
+            }
+        }
+
+        return badges;
     }
 
     /**

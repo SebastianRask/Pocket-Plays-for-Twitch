@@ -41,11 +41,8 @@ public class ConstructChatMessageTask extends AsyncTask<Void, Void, ChatMessage>
 					message,
 					chatManager.getUserDisplayName(),
 					chatManager.getUserColor(),
-					chatManager.isUserMod(),
-					chatManager.isUserTurbo(),
-					chatManager.isUserSubscriber(),
 					getMessageChatEmotes(),
-					chatManager.getSubscriberIcon(),
+					chatManager.getUserBadges(),
 					false
 			);
 		} catch (Exception e) {
