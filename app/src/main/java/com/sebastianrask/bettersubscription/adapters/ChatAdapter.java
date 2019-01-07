@@ -1,7 +1,6 @@
 package com.sebastianrask.bettersubscription.adapters;
 
 import android.app.Activity;
-import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -27,6 +26,7 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.sebastianrask.bettersubscription.R;
+import com.sebastianrask.bettersubscription.model.ChatBadge;
 import com.sebastianrask.bettersubscription.model.ChatEmote;
 import com.sebastianrask.bettersubscription.model.ChatMessage;
 import com.sebastianrask.bettersubscription.service.Service;
@@ -53,9 +53,6 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ContactViewHol
 	private Pattern linkPattern;
 	private Matcher linkMatcher;
 
-	private ImageSpan imageMod;
-	private ImageSpan imageTurbo;
-	private ImageSpan imageSub;
 	private int emoteAlignment;
 	private ChatAdapterCallback mCallback;
 
@@ -74,8 +71,6 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ContactViewHol
 		linkPattern = Pattern.compile("((http|https|ftp)\\:\\/\\/[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,3}(:[a-zA-Z0-9]*)?\\/?([a-zA-Z0\u200C123456789\\-\\._\\?\\,\\'\\/\\\\\\+&amp;%\\$#\\=~])*[^\\.\\,\\)\\(\\s])");
 
 		emoteAlignment = DynamicDrawableSpan.ALIGN_BASELINE;
-		imageMod = new ImageSpan(context, R.drawable.ic_moderator, emoteAlignment);
-		imageTurbo = new ImageSpan(context, R.drawable.ic_twitch_turbo, emoteAlignment);
 		isNightTheme = settings.getTheme().equals(context.getString(R.string.night_theme_name)) || settings.getTheme().equals(context.getString(R.string.true_night_theme_name));
 	}
 
@@ -96,35 +91,17 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ContactViewHol
 				Log.d(LOG_TAG, "Binding Message for user");
 				Log.d(LOG_TAG, "Message: " + message.toString());
 			}
-			if(imageSub == null) {
-				Bitmap resizedSubscriberEmote = Service.getResizedBitmap(message.getSubscriberIcon(),
-																				imageMod.getDrawable().getIntrinsicWidth(),
-																				imageMod.getDrawable().getIntrinsicHeight());
-				imageSub = new ImageSpan(context, resizedSubscriberEmote, emoteAlignment);
-			}
-
-
-			final SpannableStringBuilder builder = new SpannableStringBuilder();
-			if(message.isMod()) {
-				builder
-						.append("  ")
-						.setSpan(imageMod, 0, 1, 0);
-			}
-
-			if(message.isSubscriber()) {
-				builder
-						.append("  ")
-						.setSpan(imageSub, builder.length() - 2, builder.length() - 1, 0);
-			}
-
-			if(message.isTurbo()) {
-				builder
-						.append("  ")
-						.setSpan(imageTurbo, builder.length() - 2, builder.length() - 1, 0);
-			}
 
 			if (message.getName() == null) {
 				return;
+			}
+
+			final SpannableStringBuilder builder = new SpannableStringBuilder();
+
+			for (final ChatBadge badge : message.getBadges()) {
+				builder.append("  ")
+						.setSpan(new ImageSpan(context, badge.getBitmap(), emoteAlignment),
+								builder.length() - 2, builder.length() - 1, 0);
 			}
 
 			builder.append(message.getName());

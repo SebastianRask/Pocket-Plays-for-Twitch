@@ -13,6 +13,8 @@ import android.util.Log;
 import android.util.LruCache;
 
 import com.sebastianrask.bettersubscription.R;
+import com.sebastianrask.bettersubscription.model.Badge;
+import com.sebastianrask.bettersubscription.model.ChatBadge;
 import com.sebastianrask.bettersubscription.model.ChatEmote;
 import com.sebastianrask.bettersubscription.model.ChatMessage;
 import com.sebastianrask.bettersubscription.model.Emote;
@@ -30,10 +32,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,14 +40,13 @@ public class ChatManager extends AsyncTask<Void, ChatManager.ProgressUpdate, Voi
 	private final String LOG_TAG = getClass().getSimpleName();
 
 	private Pattern roomstatePattern = Pattern.compile("@broadcaster-lang=(.*);r9k=(0|1);slow=(0|\\d+);subs-only=(0|1)"),
-					userStatePattern = Pattern.compile("color=(#?\\w*);display-name=(.+);emote-sets=(.+);mod=(0|1);subscriber=(0|1);(turbo=(0|1)|user)"),
-					stdVarPattern = Pattern.compile("color=(#?\\w*);display-name=(\\w+).*;mod=(0|1);room-id=\\d+;.*subscriber=(0|1);.*turbo=(0|1);.* PRIVMSG #\\S* :(.*)"),
+					userStatePattern = Pattern.compile("@badges=(.*);color=(#?\\w*);display-name=(.+);emote-sets="),
+					stdVarPattern = Pattern.compile("@badges=(.*);color=(#?\\w*);display-name=(\\w+).*;room-id=\\d+;.*subscriber=(0|1);.*turbo=(0|1);.* PRIVMSG #\\S* :(.*)"),
 					noticePattern = Pattern.compile("@msg-id=(\\w*)");
 
 	// Default Twitch Chat connect IP/domain and port
 	private String twitchChatServer = "irc.twitch.tv";
 	private int twitchChatPort = 6667;
-	private Bitmap subscriberIcon;
 
 	private BufferedWriter writer;
 	private BufferedReader reader;
@@ -65,11 +63,9 @@ public class ChatManager extends AsyncTask<Void, ChatManager.ProgressUpdate, Voi
 	private Settings appSettings;
 
 	// Data about the user and how to display his/hers message
+	private List<ChatBadge> userBadges;
 	private String userDisplayName;
 	private String userColor;
-	private boolean userIsMod;
-	private boolean userIsSubscriber;
-	private boolean userIsTurbo;
 
 	// Data about room state
 	private boolean chatIsR9kmode;
@@ -111,11 +107,20 @@ public class ChatManager extends AsyncTask<Void, ChatManager.ProgressUpdate, Voi
 	@Override
 	protected Void doInBackground(Void... params) {
 		Log.d(LOG_TAG, "Trying to start chat " + hashChannel + " for user " + user);
-		subscriberIcon = mEmoteManager.getSubscriberEmote();
 		mEmoteManager.loadBttvEmotes(new ChatEmoteManager.EmoteFetchCallback() {
 			@Override
 			public void onEmoteFetched() {
 				onProgressUpdate(new ChatManager.ProgressUpdate(ChatManager.ProgressUpdate.UpdateType.ON_BTTV_FETCHED));
+			}
+		});
+		mEmoteManager.loadGlobalChatBadges(new ChatEmoteManager.EmoteFetchCallback() {
+			@Override
+			public void onEmoteFetched() {
+			}
+		});
+		mEmoteManager.loadChannelChatBadges(new ChatEmoteManager.EmoteFetchCallback() {
+			@Override
+			public void onEmoteFetched() {
 			}
 		});
 
@@ -184,9 +189,7 @@ public class ChatManager extends AsyncTask<Void, ChatManager.ProgressUpdate, Voi
 	 * When a message has been parsed it is sent via the callback interface.
 	 */
 	private void connect(String address, int port) {
-		try {
-			@SuppressWarnings("resource")
-			Socket socket = new Socket(address, port);
+		try (final Socket socket = new Socket(address, port)) {
 			writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
 			reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
@@ -231,7 +234,7 @@ public class ChatManager extends AsyncTask<Void, ChatManager.ProgressUpdate, Voi
 			}
 
 		} catch (IOException e) {
-			e.printStackTrace();
+			Log.d(LOG_TAG, "Failed to connect to " + address + "/" + port, e);
 			onProgressUpdate(new ProgressUpdate(ProgressUpdate.UpdateType.ON_CONNECTION_FAILED));
 		}
 	}
@@ -293,15 +296,9 @@ public class ChatManager extends AsyncTask<Void, ChatManager.ProgressUpdate, Voi
 	private void handleUserstate(String line) {
 		Matcher userstateMatcher = userStatePattern.matcher(line);
 		if(userstateMatcher.find()) {
-			userColor = userstateMatcher.group(1);
-			userDisplayName = userstateMatcher.group(2);
-			String emoteSets = userstateMatcher.group(3);
-			userIsMod = userstateMatcher.group(4).equals("1");
-			userIsSubscriber = userstateMatcher.group(5).equals("1");
-			if (userstateMatcher.groupCount() > 7) {
-				userIsTurbo = userstateMatcher.group(7).equals("1");
-			}
-
+			userBadges = mEmoteManager.getChatBadgesForTag(userstateMatcher.group(1));
+			userColor = userstateMatcher.group(2);
+			userDisplayName = userstateMatcher.group(3);
 		} else {
 			Log.e(LOG_TAG, "Failed to find userstate pattern in: \n" + line);
 		}
@@ -317,16 +314,15 @@ public class ChatManager extends AsyncTask<Void, ChatManager.ProgressUpdate, Voi
 		List<ChatEmote> emotes = new ArrayList<>(mEmoteManager.findTwitchEmotes(line));
 
 		if(stdVarMatcher.find()) {
-			String color = stdVarMatcher.group(1);
-			String displayName = stdVarMatcher.group(2);
-			boolean isMod = stdVarMatcher.group(3).equals("1");
-			boolean isSubscriber = stdVarMatcher.group(4).equals("1");
-			boolean isTurbo = stdVarMatcher.group(5).equals("1");
+			final String badgeTag = stdVarMatcher.group(1);
+			String color = stdVarMatcher.group(2);
+			String displayName = stdVarMatcher.group(3);
 			String message = stdVarMatcher.group(6);
 			emotes.addAll(mEmoteManager.findBttvEmotes(message));
 			boolean highlight = false;//Pattern.compile(Pattern.quote(userDisplayName), Pattern.CASE_INSENSITIVE).matcher(message).find();
+			final List<ChatBadge> badges = mEmoteManager.getChatBadgesForTag(badgeTag);
 
-			ChatMessage chatMessage = new ChatMessage(message, displayName, color, isMod, isTurbo, isSubscriber, emotes, subscriberIcon, highlight);
+			ChatMessage chatMessage = new ChatMessage(message, displayName, color, emotes, badges, highlight);
 			publishProgress(new ProgressUpdate(ProgressUpdate.UpdateType.ON_MESSAGE, chatMessage));
 		} else {
 			Log.e(LOG_TAG, "Failed to find message pattern in: \n" + line);
@@ -437,20 +433,8 @@ public class ChatManager extends AsyncTask<Void, ChatManager.ProgressUpdate, Voi
 		return userColor;
 	}
 
-	public boolean isUserMod() {
-		return userIsMod;
-	}
-
-	public boolean isUserSubscriber() {
-		return userIsSubscriber;
-	}
-
-	public boolean isUserTurbo() {
-		return userIsTurbo;
-	}
-
-	public Bitmap getSubscriberIcon() {
-		return subscriberIcon;
+	public List<ChatBadge> getUserBadges() {
+		return userBadges;
 	}
 
 	/**
