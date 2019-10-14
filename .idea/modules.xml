@@ -3,6 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Pocket-Plays-for-Twitch.iml" filepath="$PROJECT_DIR$/Pocket-Plays-for-Twitch.iml" />
+      <module fileurl="file://$PROJECT_DIR$/app/Pocket-Plays-for-Twitch-app.iml" filepath="$PROJECT_DIR$/app/Pocket-Plays-for-Twitch-app.iml" group="Pocket-Plays-for-Twitch/app" />
+      <module fileurl="file://$PROJECT_DIR$/Repos-Pocket-Plays-for-Twitch.iml" filepath="$PROJECT_DIR$/Repos-Pocket-Plays-for-Twitch.iml" group="Pocket-Plays-for-Twitch" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>
   </component>

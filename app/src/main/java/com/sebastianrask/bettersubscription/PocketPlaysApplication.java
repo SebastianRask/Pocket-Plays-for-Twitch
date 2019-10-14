@@ -1,24 +1,18 @@
 package com.sebastianrask.bettersubscription;
 
 import android.annotation.SuppressLint;
-import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
-import android.media.AudioAttributes;
-import android.media.RingtoneManager;
 import android.os.Build;
+
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
-import androidx.media.AudioAttributesCompat;
 import androidx.multidex.MultiDex;
 import androidx.multidex.MultiDexApplication;
 
 import com.crashlytics.android.Crashlytics;
-import com.google.android.gms.analytics.GoogleAnalytics;
-import com.google.android.gms.analytics.HitBuilders;
-import com.google.android.gms.analytics.Tracker;
-import com.sebastianrask.bettersubscription.service.Settings;
+import com.google.firebase.analytics.FirebaseAnalytics;
 
 import io.fabric.sdk.android.Fabric;
 
@@ -28,7 +22,6 @@ import io.fabric.sdk.android.Fabric;
  */
 @SuppressLint("StaticFieldLeak") // It is alright to store application context statically
 public class PocketPlaysApplication extends MultiDexApplication {
-    private static Tracker mTracker;
     private static Context mContext;
 
     public static boolean isCrawlerUpdate = false; //ToDo remember to disable for crawler updates
@@ -62,20 +55,8 @@ public class PocketPlaysApplication extends MultiDexApplication {
         MultiDex.install(this);
     }
 
-    /**
-     * Gets the default {@link Tracker} for this {@link Application}.
-     *
-     * @return tracker
-     */
-    static synchronized public Tracker getDefaultTracker() {
-        if (mTracker == null) {
-            GoogleAnalytics analytics = GoogleAnalytics.getInstance(mContext);
-            mTracker = analytics.newTracker(R.xml.global_tracker);
-            mTracker.enableAdvertisingIdCollection(true);
-            mTracker.enableExceptionReporting(true);
-        }
-
-        return mTracker;
+    static synchronized public FirebaseAnalytics getDefaultTracker() {
+        return FirebaseAnalytics.getInstance(mContext);
     }
 
     public static void trackEvent(@StringRes int category, @StringRes int action, @Nullable String label) {
@@ -83,20 +64,7 @@ public class PocketPlaysApplication extends MultiDexApplication {
     }
 
     public static void trackEvent(String category, String action, @Nullable String label, @Nullable Long value) {
-        HitBuilders.EventBuilder builder = new HitBuilders.EventBuilder().setCategory(category).setAction(action);
-
-        if (label != null) {
-            builder.setLabel(label);
-        }
-
-        if (value != null) {
-            builder.setValue(value);
-        }
-
-        Tracker tracker = getDefaultTracker();
-        if (tracker != null && tracker.isInitialized() && !isCrawlerUpdate) {
-            tracker.send(builder.build());
-        }
+        // No more tracking.
     }
 
     private void initNotificationChannels() {

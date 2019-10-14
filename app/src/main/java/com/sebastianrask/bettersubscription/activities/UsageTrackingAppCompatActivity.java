@@ -6,8 +6,6 @@ import androidx.annotation.StringRes;
 import androidx.appcompat.app.AppCompatActivity;
 import android.util.Log;
 
-import com.google.android.gms.analytics.HitBuilders;
-import com.google.android.gms.analytics.Tracker;
 import com.sebastianrask.bettersubscription.BuildConfig;
 import com.sebastianrask.bettersubscription.PocketPlaysApplication;
 import com.sebastianrask.bettersubscription.activities.main.MainActivity;
@@ -20,25 +18,12 @@ import com.sebastianrask.bettersubscription.service.Settings;
 public abstract class UsageTrackingAppCompatActivity extends AppCompatActivity {
 	private String LOG_TAG = getClass().getSimpleName();
 	private long startTime;
-	protected Tracker mTracker;
 
 	@Override
 	protected void onCreate(Bundle savedInstance) {
 		super.onCreate(savedInstance);
-		if (!PocketPlaysApplication.isCrawlerUpdate) {
-			mTracker = PocketPlaysApplication.getDefaultTracker();
-		}
 
 		checkStartdate();
-	}
-
-	@Override
-	public void onResume() {
-		super.onResume();
-		if (!BuildConfig.DEBUG && !PocketPlaysApplication.isCrawlerUpdate) {
-			mTracker.setScreenName(getClass().getSimpleName());
-			mTracker.send(new HitBuilders.ScreenViewBuilder().build());
-		}
 	}
 
 	@Override

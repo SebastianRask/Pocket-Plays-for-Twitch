@@ -47,7 +47,7 @@ public class LoginActivity extends UsageTrackingAppCompatActivity {
 	private static GetFollowsFromDB subscriptionsTask;
 	private static boolean toTransition = false, isPartOfSetup = true;
 	private String LOG_TAG = "LoginActivity";
-	private final String LOGIN_URL = "https://api.twitch.tv/kraken/oauth2/authorize?response_type=token&client_id=" + Service.getApplicationClientID() + "&redirect_uri=http%3A%2F%2Fnrask.net%2Foauth_authorizing&scope=user_read+chat_login+user_follows_edit+user_subscriptions";
+	private final String LOGIN_URL = "https://api.twitch.tv/kraken/oauth2/authorize?response_type=token&client_id=" + Service.getApplicationClientID() + "&redirect_uri=https%3A%2F%2Fsebastianrask.github.io%2Foauth_authorizing&scope=user_read+chat_login+user_follows_edit+user_subscriptions";
 
 	private boolean isWebViewShown = false,
 					isWebViewHiding = false,

@@ -42,7 +42,7 @@ public class ChatManager extends AsyncTask<Void, ChatManager.ProgressUpdate, Voi
 
 	private Pattern roomstatePattern = Pattern.compile("@broadcaster-lang=(.*);r9k=(0|1);slow=(0|\\d+);subs-only=(0|1)"),
 					userStatePattern = Pattern.compile("color=(#?\\w*);display-name=(.+);emote-sets=(.+);mod=(0|1);subscriber=(0|1);(turbo=(0|1)|user)"),
-					stdVarPattern = Pattern.compile("color=(#?\\w*);display-name=(\\w+).*;mod=(0|1);room-id=\\d+;.*subscriber=(0|1);.*turbo=(0|1);.* PRIVMSG #\\S* :(.*)"),
+					stdVarPattern = Pattern.compile("@badge-info=(.*);color=(#?\\w*);display-name=(\\w+).*;mod=(0|1);room-id=\\d+;.*subscriber=(0|1);.*turbo=(0|1);.* PRIVMSG #\\S* :(.*)"),
 					noticePattern = Pattern.compile("@msg-id=(\\w*)");
 
 	// Default Twitch Chat connect IP/domain and port
