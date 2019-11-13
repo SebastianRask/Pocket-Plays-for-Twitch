@@ -265,7 +265,15 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ContactViewHol
 			return ContextCompat.getColor(context, R.color.blue_700);
 		}
 
-		return Color.parseColor(colorFromAPI);
+		try {
+			return Color.parseColor(colorFromAPI);
+		} catch (Exception exc) {
+			if (isNightTheme) {
+				return ContextCompat.getColor(context, R.color.blue_500);
+			} else {
+				return ContextCompat.getColor(context, R.color.blue_700);
+			}
+		}
 	}
 
 	private int getMessageColor() {

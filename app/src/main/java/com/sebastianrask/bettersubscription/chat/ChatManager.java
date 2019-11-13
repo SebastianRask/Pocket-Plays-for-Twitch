@@ -42,7 +42,7 @@ public class ChatManager extends AsyncTask<Void, ChatManager.ProgressUpdate, Voi
 
 	private Pattern roomstatePattern = Pattern.compile("@broadcaster-lang=(.*);r9k=(0|1);slow=(0|\\d+);subs-only=(0|1)"),
 					userStatePattern = Pattern.compile("color=(#?\\w*);display-name=(.+);emote-sets=(.+);mod=(0|1);subscriber=(0|1);(turbo=(0|1)|user)"),
-					stdVarPattern = Pattern.compile("@badge-info=(.*);color=(#?\\w*);display-name=(\\w+).*;mod=(0|1);room-id=\\d+;.*subscriber=(0|1);.*turbo=(0|1);.* PRIVMSG #\\S* :(.*)"),
+					stdVarPattern = Pattern.compile("badges=(.*);color=(#?\\w*);display-name=(\\w+).*;mod=(0|1);room-id=\\d+;.*subscriber=(0|1);.*turbo=(0|1);.* PRIVMSG #\\S* :(.*)"),
 					noticePattern = Pattern.compile("@msg-id=(\\w*)");
 
 	// Default Twitch Chat connect IP/domain and port
@@ -317,12 +317,12 @@ public class ChatManager extends AsyncTask<Void, ChatManager.ProgressUpdate, Voi
 		List<ChatEmote> emotes = new ArrayList<>(mEmoteManager.findTwitchEmotes(line));
 
 		if(stdVarMatcher.find()) {
-			String color = stdVarMatcher.group(1);
-			String displayName = stdVarMatcher.group(2);
-			boolean isMod = stdVarMatcher.group(3).equals("1");
-			boolean isSubscriber = stdVarMatcher.group(4).equals("1");
-			boolean isTurbo = stdVarMatcher.group(5).equals("1");
-			String message = stdVarMatcher.group(6);
+			String color = stdVarMatcher.group(2);
+			String displayName = stdVarMatcher.group(3);
+			boolean isMod = stdVarMatcher.group(4).equals("1");
+			boolean isSubscriber = stdVarMatcher.group(5).equals("1");
+			boolean isTurbo = stdVarMatcher.group(6).equals("1");
+			String message = stdVarMatcher.group(7);
 			emotes.addAll(mEmoteManager.findBttvEmotes(message));
 			boolean highlight = false;//Pattern.compile(Pattern.quote(userDisplayName), Pattern.CASE_INSENSITIVE).matcher(message).find();
 
