@@ -182,6 +182,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ContactViewHol
 
 			builder.append(resultMessage);
 			builder.setSpan(new RelativeSizeSpan(getTextSize()), 0, builder.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+
 			holder.message.setText(builder);
 			holder.message.setMovementMethod(LinkMovementMethod.getInstance());
 

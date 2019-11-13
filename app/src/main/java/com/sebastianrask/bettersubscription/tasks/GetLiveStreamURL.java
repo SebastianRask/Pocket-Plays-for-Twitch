@@ -13,6 +13,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -90,7 +91,7 @@ public class GetLiveStreamURL extends AsyncTask<String, Void, HashMap<String, St
 		String resultString = Service.urlToJSONString("https://api.twitch.tv/api/channels/" + streamerName + "/access_token");
 		try {
 			JSONObject resultJSON = new JSONObject(resultString);
-			tokenString = resultJSON.getString("token").replaceAll("\\\\", ""); // Remove all backslashes from the returned string. We need the string to make a jsonobject
+			tokenString = URLEncoder.encode(resultJSON.getString("token")); // URL Encode token
 			sig = resultJSON.getString("sig");
 
 			Log.d("ACCESS_TOKEN_STRING", tokenString);
