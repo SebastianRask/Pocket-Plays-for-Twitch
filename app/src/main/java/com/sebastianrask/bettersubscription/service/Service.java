@@ -45,6 +45,14 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 
+import androidx.annotation.AttrRes;
+import androidx.annotation.ColorRes;
+import androidx.annotation.Nullable;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
+import androidx.customview.widget.ViewDragHelper;
+import androidx.drawerlayout.widget.DrawerLayout;
+
 import com.google.android.gms.cast.framework.CastContext;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -57,6 +65,7 @@ import com.sebastianrask.bettersubscription.activities.main.MyStreamsActivity;
 import com.sebastianrask.bettersubscription.activities.main.TopGamesActivity;
 import com.sebastianrask.bettersubscription.activities.main.TopStreamsActivity;
 import com.sebastianrask.bettersubscription.broadcasts_and_services.NotificationReceiver;
+import com.sebastianrask.bettersubscription.misc.FuckTwitch;
 import com.sebastianrask.bettersubscription.misc.SecretKeys;
 import com.sebastianrask.bettersubscription.model.ChannelInfo;
 
@@ -86,16 +95,6 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import javax.security.cert.CertificateException;
-import javax.security.cert.X509Certificate;
-
-import androidx.annotation.AttrRes;
-import androidx.annotation.ColorRes;
-import androidx.annotation.Nullable;
-import androidx.appcompat.widget.Toolbar;
-import androidx.core.content.ContextCompat;
-import androidx.customview.widget.ViewDragHelper;
-import androidx.drawerlayout.widget.DrawerLayout;
 
 /**
  * Created by Sebastian Rask on 12-02-2015.
@@ -119,6 +118,15 @@ public class Service {
      */
     public static String getApplicationClientID() {
         return SecretKeys.TWITCH_CLIENT_ID;
+    }
+
+    /**
+     * Returns the Twitch Client ID
+     *
+     * @return The ID
+     */
+    public static String getTwitchWebClientID() {
+        return FuckTwitch.TWITCH_WEB_CLIENT_ID;
     }
 
     /**
@@ -637,8 +645,41 @@ public class Service {
     }
 
     public static String urlToJSONString(String urlToRead) {
+        // Alright, so sometimes Twitch decides that Pocket Plays's client ID should be blocked. Currently only happens for the hidden /api endpoints.
+        // IF we are being blocked, then retry the request with Twitch web ClientID. They are typically not blocking this.
+        String result = urlToJSONString(urlToRead, true); // "{\"error\":\"Gone\",\"status\":410,\"message\":\"this API has been removed.\"}";
+        try {
+            boolean retryWithWebClientId = false;
+            if (result.isEmpty()) {
+                retryWithWebClientId = true;
+            } else {
+                JSONObject resultJson = new JSONObject(result);
+                int status = resultJson.getInt("status");
+                String error = resultJson.getString("error");
+                retryWithWebClientId = status == 410 || error.equals("Gone");
+            }
+
+            if (retryWithWebClientId) {
+                result = urlToJSONString(urlToRead, false);
+            }
+
+        } catch (Exception exc) {
+
+        }
+
+        return result;
+    }
+
+    public static String urlToJSONString(String urlToRead, Boolean usePocketPlaysClientId) {
         if (!PocketPlaysApplication.isCrawlerUpdate && urlToRead.contains("api.twitch")) {
             PocketPlaysApplication.trackEvent(R.string.category_api, R.string.action_api_twitch, urlToRead);
+        }
+
+        String clientId;
+        if (usePocketPlaysClientId) {
+            clientId = Service.getApplicationClientID();
+        } else {
+            clientId = Service.getTwitchWebClientID();
         }
 
         URL url;
@@ -653,7 +694,7 @@ public class Service {
 
             conn.setReadTimeout(5000);
             conn.setConnectTimeout(3000);
-            conn.setRequestProperty("Client-ID", Service.getApplicationClientID());
+            conn.setRequestProperty("Client-ID", clientId);
             conn.setRequestProperty("Accept", "application/vnd.twitchtv.v5+json");
             conn.setRequestMethod("GET");
             in = new Scanner(new InputStreamReader(conn.getInputStream()));
