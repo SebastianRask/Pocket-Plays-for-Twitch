@@ -144,9 +144,6 @@ public abstract class MainActivityAdapter<E extends Comparable<E> & MainElement,
 
 	protected void loadImagePreview(String previewURL, E element, final ElementsViewHolder viewHolder) {
 		if(previewURL != null && !previewURL.isEmpty()) {
-			if (previewURL.contains("https")) {
-				previewURL = previewURL.replace("https", "http");
-			}
 
 			RequestCreator creator =
 					Picasso.with(context)
